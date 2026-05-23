@@ -1,10 +1,43 @@
-import {create} from 'zustand'
+import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
+import { User } from '../types/types'
 
-
-type AuthStore = {
-    
+interface AuthState {
+  user: User | null;
+  token: string | null;
+  isAuthenticated: boolean;
+  setAuth: (user: User, token: string) => void;
+  logout: () => void;
 }
 
-export const useAuthStore = create<>()(
-
-)
+export const useAuthStore = create<AuthState>()(
+  persist(
+    (set) => ({
+      user: null,
+      token: null,
+      isAuthenticated: false,
+      setAuth: (user, token) => {
+        set({
+          user,
+          token,
+          isAuthenticated: true,
+        });
+      },
+      logout: () => {
+        set({
+          user: null,
+          token: null,
+          isAuthenticated: false,
+        });
+      },
+    }),
+    {
+      name: 'medical-reservation-auth', // Klucz w localStorage - dopasowany do axiosInstance.ts i interceptora
+      partialize: (state) => ({
+        user: state.user,
+        token: state.token,
+        isAuthenticated: state.isAuthenticated,
+      }),
+    }
+  )
+);
