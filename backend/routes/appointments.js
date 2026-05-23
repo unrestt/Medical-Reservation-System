@@ -8,10 +8,10 @@ const prisma = new PrismaClient();
 // POST /api/appointments - Rezerwacja wizyty przez pacjenta
 router.post('/', authenticate, requireRole(['PATIENT']), async (req, res) => {
   try {
-    const { doctorId, dateTime } = req.body; 
+    const { doctorId, dateTime, description } = req.body; 
 
-    if (!doctorId || !dateTime) {
-      return res.status(400).json({ error: 'Wymagane pola: doctorId, dateTime (w formacie ISO)' });
+    if (!doctorId || !dateTime || !description) {
+      return res.status(400).json({ error: 'Wymagane pola: doctorId, dateTime (w formacie ISO), description' });
     }
 
     const requestedDate = new Date(dateTime);
@@ -40,7 +40,8 @@ router.post('/', authenticate, requireRole(['PATIENT']), async (req, res) => {
         patientId: req.user.userId,
         doctorId: doctorId,
         dateTime: requestedDate,
-        status: 'CONFIRMED'
+        status: 'CONFIRMED',
+        description: description
       }
     });
 
@@ -63,7 +64,9 @@ router.get('/me', authenticate, async (req, res) => {
         include: {
           doctor: { 
             select: { 
+              id: true,
               email: true, 
+              name: true,
               doctorProfile: true 
             } 
           }
@@ -71,12 +74,18 @@ router.get('/me', authenticate, async (req, res) => {
         orderBy: { dateTime: 'asc' }
       });
     } 
-    // LEKARZ widzi wszystkie swoje przyszłe/przeszłe wizyty i adres email pacjenta
+    // LEKARZ widzi wszystkie swoje przyszłe/przeszłe wizyty i dane pacjenta
     else if (req.user.role === 'DOCTOR') {
       appointments = await prisma.appointment.findMany({
         where: { doctorId: req.user.userId },
         include: {
-          patient: { select: { id: true, email: true } }
+          patient: { 
+            select: { 
+              id: true, 
+              email: true,
+              name: true
+            } 
+          }
         },
         orderBy: { dateTime: 'asc' }
       });
@@ -85,8 +94,21 @@ router.get('/me', authenticate, async (req, res) => {
     else if (req.user.role === 'ADMIN') {
       appointments = await prisma.appointment.findMany({
         include: {
-          patient: { select: { email: true } },
-          doctor: { select: { email: true, doctorProfile: true } }
+          patient: { 
+            select: { 
+              id: true,
+              email: true,
+              name: true
+            } 
+          },
+          doctor: { 
+            select: { 
+              id: true,
+              email: true, 
+              name: true,
+              doctorProfile: true 
+            } 
+          }
         },
         orderBy: { dateTime: 'asc' }
       });
@@ -96,6 +118,88 @@ router.get('/me', authenticate, async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Błąd pobierania wizyt.' });
+  }
+});
+
+// GET /api/appointments/doctor/:doctorId - Pobieranie wizyt dla konkretnego lekarza
+router.get('/doctor/:doctorId', authenticate, async (req, res) => {
+  try {
+    const doctorId = parseInt(req.params.doctorId, 10);
+    
+    // Sprawdzenie uprawnień: tylko ADMIN lub ten konkretny lekarz
+    if (req.user.role !== 'ADMIN') {
+      if (req.user.role !== 'DOCTOR' || req.user.userId !== doctorId) {
+        return res.status(403).json({ error: 'Odmowa dostępu: brak odpowiednich uprawnień.' });
+      }
+    }
+
+    const appointments = await prisma.appointment.findMany({
+      where: { doctorId: doctorId },
+      include: {
+        patient: {
+          select: {
+            id: true,
+            email: true,
+            name: true
+          }
+        },
+        doctor: {
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            doctorProfile: true
+          }
+        }
+      },
+      orderBy: { dateTime: 'asc' }
+    });
+
+    res.json(appointments);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Błąd pobierania wizyt lekarza.' });
+  }
+});
+
+// GET /api/appointments/patient/:patientId - Pobieranie wizyt dla konkretnego pacjenta (klienta)
+router.get('/patient/:patientId', authenticate, async (req, res) => {
+  try {
+    const patientId = parseInt(req.params.patientId, 10);
+
+    // Sprawdzenie uprawnień: tylko ADMIN lub ten konkretny pacjent
+    if (req.user.role !== 'ADMIN') {
+      if (req.user.role !== 'PATIENT' || req.user.userId !== patientId) {
+        return res.status(403).json({ error: 'Odmowa dostępu: brak odpowiednich uprawnień.' });
+      }
+    }
+
+    const appointments = await prisma.appointment.findMany({
+      where: { patientId: patientId },
+      include: {
+        patient: {
+          select: {
+            id: true,
+            email: true,
+            name: true
+          }
+        },
+        doctor: {
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            doctorProfile: true
+          }
+        }
+      },
+      orderBy: { dateTime: 'asc' }
+    });
+
+    res.json(appointments);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Błąd pobierania wizyt pacjenta.' });
   }
 });
 

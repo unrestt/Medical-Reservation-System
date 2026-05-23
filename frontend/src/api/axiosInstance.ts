@@ -6,9 +6,30 @@ export const api = axios.create({
     timeout: 10000,
     headers: {
         'Content-Type': 'application/json',
-    },
+    },  
 })
 
+
+api.interceptors.request.use(
+    (config) => {
+        try {
+            const persistedState = localStorage.getItem('medical-reservation-auth');
+            if (persistedState) {
+                const parsed = JSON.parse(persistedState);
+                const token = parsed.state?.token;
+                if (token) {
+                    config.headers.Authorization = `Bearer ${token}`;
+                }
+            }
+        } catch (error) {
+            console.error('Błąd pobierania tokenu z localStorage:', error);
+        }
+        return config;
+    },
+    (error) => {
+        return Promise.reject(error);
+    }
+);
 
 api.interceptors.response.use(
     (response)=> response,
@@ -18,4 +39,4 @@ api.interceptors.response.use(
         }
         return Promise.reject(error);
     }
-)
+);

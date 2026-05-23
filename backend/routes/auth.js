@@ -10,11 +10,11 @@ const JWT_SECRET = process.env.JWT_SECRET || 'supersecret';
 // REJESTRACJA
 router.post('/register', async (req, res) => {
   try {
-    const { email, password, role, name, specialty, city } = req.body;
+    const { email, password, role, name, specialty, city, bio, profilePicture } = req.body;
 
     // Walidacja danych wejściowych
-    if (!email || !password || !role) {
-      return res.status(400).json({ error: 'Wymagane pola: email, password, role' });
+    if (!email || !password || !role || !name) {
+      return res.status(400).json({ error: 'Wymagane pola: email, password, role, name' });
     }
 
     if (!['PATIENT', 'DOCTOR', 'ADMIN'].includes(role)) {
@@ -35,22 +35,23 @@ router.post('/register', async (req, res) => {
       data: {
         email,
         password: hashedPassword,
-        role
+        role,
+        name
       }
     });
 
     // Jeśli rejestruje się lekarz, wymagane są dodatkowe dane profilowe
     if (role === 'DOCTOR') {
-      if (!name || !specialty || !city) {
-        // W razie braku danych, tworzymy użytkownika, ale zwracamy ostrzeżenie
-        return res.status(400).json({ error: 'Dla lekarza wymagane są dodatkowe pola: name, specialty, city' });
+      if (!specialty || !city) {
+        return res.status(400).json({ error: 'Dla lekarza wymagane są dodatkowe pola: specialty, city' });
       }
       await prisma.doctorProfile.create({
         data: {
           userId: user.id,
-          name,
           specialty,
-          city
+          city,
+          bio: bio || null,
+          profilePicture: profilePicture || null
         }
       });
     }
@@ -86,7 +87,7 @@ router.post('/login', async (req, res) => {
       { expiresIn: '24h' } // Ważny 24 godziny
     );
 
-    res.json({ token, role: user.role, userId: user.id });
+    res.json({ token, role: user.role, userId: user.id, name: user.name, email: user.email });
   } catch (error) {
     console.error('Błąd logowania:', error);
     res.status(500).json({ error: 'Wystąpił wewnętrzny błąd serwera podczas logowania.' });

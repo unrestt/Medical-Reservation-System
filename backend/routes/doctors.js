@@ -8,22 +8,41 @@ const prisma = new PrismaClient();
 // GET /api/doctors - Pobieranie i filtrowanie lekarzy
 router.get('/', async (req, res) => {
   try {
-    const { specialty, city } = req.query;
+    const { specialty, city, name } = req.query;
     const filter = {};
 
     if (specialty) filter.specialty = { contains: specialty };
     if (city) filter.city = { contains: city };
+    if (name) {
+      filter.user = {
+        name: { contains: name }
+      };
+    }
 
     const doctors = await prisma.doctorProfile.findMany({
       where: filter,
       include: {
         user: {
-          select: { email: true }
+          select: {
+            name: true,
+            email: true
+          }
         }
       }
     });
 
-    res.json(doctors);
+    const formattedDoctors = doctors.map(d => ({
+      id: d.id,
+      userId: d.userId,
+      name: d.user.name,
+      email: d.user.email,
+      specialty: d.specialty,
+      city: d.city,
+      bio: d.bio,
+      profilePicture: d.profilePicture
+    }));
+
+    res.json(formattedDoctors);
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Błąd pobierania listy lekarzy' });
@@ -156,6 +175,67 @@ router.get('/:id/slots', async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Wystąpił błąd podczas generowania slotów.' });
+  }
+});
+
+// PUT /api/doctors/profile - Aktualizacja profilu lekarza (tylko DOCTOR)
+router.put('/profile', authenticate, requireRole(['DOCTOR']), async (req, res) => {
+  try {
+    const { name, specialty, city, bio, profilePicture } = req.body;
+    const userId = req.user.userId;
+
+    // Pobranie profilu lekarza
+    const doctorProfile = await prisma.doctorProfile.findUnique({
+      where: { userId }
+    });
+
+    if (!doctorProfile) {
+      return res.status(404).json({ error: 'Nie znaleziono profilu lekarza.' });
+    }
+
+    // Aktualizacja w transakcji
+    const updatedProfile = await prisma.$transaction(async (tx) => {
+      // 1. Zaktualizowanie User.name, jeśli podano
+      if (name) {
+        await tx.user.update({
+          where: { id: userId },
+          data: { name }
+        });
+      }
+
+      // 2. Zaktualizowanie DoctorProfile
+      return await tx.doctorProfile.update({
+        where: { userId },
+        data: {
+          specialty: specialty !== undefined ? specialty : undefined,
+          city: city !== undefined ? city : undefined,
+          bio: bio !== undefined ? bio : undefined,
+          profilePicture: profilePicture !== undefined ? profilePicture : undefined,
+        },
+        include: {
+          user: {
+            select: { name: true, email: true }
+          }
+        }
+      });
+    });
+
+    res.json({
+      message: 'Profil lekarza zaktualizowany pomyślnie.',
+      doctor: {
+        id: updatedProfile.id,
+        userId: updatedProfile.userId,
+        name: updatedProfile.user.name,
+        email: updatedProfile.user.email,
+        specialty: updatedProfile.specialty,
+        city: updatedProfile.city,
+        bio: updatedProfile.bio,
+        profilePicture: updatedProfile.profilePicture
+      }
+    });
+  } catch (error) {
+    console.error('Błąd aktualizacji profilu lekarza:', error);
+    res.status(500).json({ error: 'Wystąpił błąd podczas aktualizacji profilu.' });
   }
 });
 
