@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import LoginForm from '../../features/auth/components/LoginForm';
 
 const LoginPage = () => {
@@ -18,9 +19,7 @@ const LoginPage = () => {
       <div className="mt-6 text-center">
         <p className="text-sm text-neutral-500">
           Nie masz jeszcze konta?{' '}
-          <a href="/register" className="text-blue-500 hover:text-blue-400 font-medium transition duration-200">
-            Zarejestruj się
-          </a>
+          <Link to={"/register"} className="text-blue-500 hover:text-blue-400 font-medium transition duration-200">Zarejestruj się</Link>
         </p>
       </div>
     </div>

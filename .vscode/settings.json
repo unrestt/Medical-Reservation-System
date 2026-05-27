@@ -1,3 +1,8 @@
 {
-    "folder-color.pathColors": []
+    "folder-color.pathColors": [
+        {
+            "folderPath": "Medical Reservation System\\frontend\\src\\features\\auth\\",
+            "color": "foldercolorizer.color_0087d7"
+        }
+    ]
 }
