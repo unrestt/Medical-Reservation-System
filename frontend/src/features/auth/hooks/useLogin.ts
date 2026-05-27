@@ -29,8 +29,11 @@ export const useLogin = () => {
         navigate('/admin/dashboard');
       } else if (data.role === 'DOCTOR') {
         navigate('/doctor/dashboard');
+      } else if (data.role === 'PATIENT') {
+        navigate('/patient/dashboard');
       } else {
-        navigate('/');
+        // Opcjonalne zabezpieczenie, jeśli rola byłaby nieznana
+        navigate('/login');
       }
     },
     onError: (error: any) => {
