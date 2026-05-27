@@ -2,8 +2,8 @@ import { Routes, Route } from 'react-router-dom'
 import './App.css'
 import { Toaster } from 'react-hot-toast'
 import MainLayout from './layout/MainLayout'
-import LoginPage from './pages/LoginPage'
-import RegisterPage from './pages/RegisterPage'
+import LoginPage from './pages/common/LoginPage'
+import RegisterPage from './pages/common/RegisterPage'
 import ProtectedRoute from './components/ProtectedRoute'
 
 function App() {
